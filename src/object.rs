@@ -1,8 +1,7 @@
-use tcod::colors::{self, Color};
-use tcod::console::{BackgroundFlag, Console};
-
-use crate::ai::*;
-use crate::messages::Messages;
+use crate::ai::Ai;
+use crate::colors::{self, Color};
+use crate::draw::Tcod;
+use crate::ui::Messages;
 
 /// This is a generic object: the player, a monster, an item, the stairs...
 /// It's always represented by a character on screen.
@@ -77,12 +76,12 @@ impl Object {
   }
 
   /// set the color and then draw the character that represents this object at its position
-  pub fn draw(&self, con: &mut dyn Console) {
-    con.set_default_foreground(self.color);
-    con.put_char(self.x, self.y, self.char, BackgroundFlag::None);
+  pub fn draw(&self, tcod: &mut Tcod) {
+    tcod.stroke(self.color);
+    tcod.put_char(self.x, self.y, self.char);
 
     if let Some((dx, dy)) = self.attacking {
-      con.set_default_foreground(colors::CYAN);
+      tcod.stroke(colors::CYAN);
       let char = match (dx, dy) {
         (0, 1) => '|',
         (0, -1) => '|',
@@ -90,7 +89,7 @@ impl Object {
         // (-1, 0) => '-',
         _ => '-',
       };
-      con.put_char(self.x + dx, self.y + dy, char, BackgroundFlag::None);
+      tcod.put_char(self.x + dx, self.y + dy, char);
     }
   }
 

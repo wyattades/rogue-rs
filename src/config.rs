@@ -1,5 +1,4 @@
-use tcod::colors::Color;
-use tcod::map::FovAlgorithm;
+use crate::colors::Color;
 
 // actual size of the window
 pub const SCREEN_WIDTH: i32 = 80;
@@ -34,7 +33,6 @@ pub const COLOR_LIGHT_GROUND: Color = Color {
   b: 50,
 };
 
-pub const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic; // default FOV algorithm
 pub const FOV_LIGHT_WALLS: bool = true; // light walls or not
 pub const TORCH_RADIUS: i32 = 10;
 

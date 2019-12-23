@@ -1,4 +1,5 @@
-use rand::Rng;
+use pcg_rand::{seeds::PcgSeeder, Pcg32Basic};
+use rand::{Rng, SeedableRng};
 use std::cmp;
 
 use crate::config::*;
@@ -43,13 +44,14 @@ impl Map {
       rooms: vec![],
     };
 
+    let mut rng = Pcg32Basic::from_seed(PcgSeeder::default());
     for _ in 0..MAX_ROOMS {
       // random width and height
-      let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
-      let h = rand::thread_rng().gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
+      let w = rng.gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
+      let h = rng.gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
       // random position without going out of the boundaries of the map
-      let x = rand::thread_rng().gen_range(0, MAP_WIDTH - w);
-      let y = rand::thread_rng().gen_range(0, MAP_HEIGHT - h);
+      let x = rng.gen_range(0, MAP_WIDTH - w);
+      let y = rng.gen_range(0, MAP_HEIGHT - h);
 
       let new_room = Rect::new(x, y, w, h);
 
@@ -77,7 +79,7 @@ impl Map {
           let (prev_x, prev_y) = map.rooms[map.rooms.len() - 1].center();
 
           // toss a coin (random bool value -- either true or false)
-          if rand::random() {
+          if rng.gen::<bool>() {
             // first move horizontally, then vertically
             map.create_h_tunnel(prev_x, new_x, prev_y);
             map.create_v_tunnel(prev_y, new_y, new_x);
@@ -98,8 +100,11 @@ impl Map {
 
   fn create_room(&mut self, room: Rect) {
     // go through the tiles in the rectangle and make them passable
-    for (x, y) in room.iter_points() {
-      self.tiles[x as usize][y as usize] = Tile::empty();
+    // for (x, y) in room.iter_points() {
+    for x in (room.x1 + 1)..room.x2 {
+      for y in (room.y1 + 1)..room.y2 {
+        self.tiles[x as usize][y as usize] = Tile::empty();
+      }
     }
   }
 

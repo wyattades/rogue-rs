@@ -1,5 +1,3 @@
-use generator::{Generator, Gn};
-
 // A rectangle on the map, used to characterise a room.
 #[derive(Clone, Copy, Debug)]
 pub struct Rect {
@@ -30,14 +28,15 @@ impl Rect {
     (self.x1 <= other.x2) && (self.x2 >= other.x1) && (self.y1 <= other.y2) && (self.y2 >= other.y1)
   }
 
-  pub fn iter_points(self) -> Generator<'static, (), (i32, i32)> {
-    Gn::new_scoped(move |mut s| {
-      for x in (self.x1 + 1)..self.x2 {
-        for y in (self.y1 + 1)..self.y2 {
-          s.yield_((x, y));
-        }
-      }
-      done!();
-    })
-  }
+  // TODO: how to do native generator?
+  // pub fn iter_points(self) -> Generator<'static, (), (i32, i32)> {
+  //   Gn::new_scoped(move |mut s| {
+  //     for x in (self.x1 + 1)..self.x2 {
+  //       for y in (self.y1 + 1)..self.y2 {
+  //         s.yield_((x, y));
+  //       }
+  //     }
+  //     done!();
+  //   })
+  // }
 }

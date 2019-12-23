@@ -1,66 +1,29 @@
-use rand::Rng;
-
-use tcod::colors;
-use tcod::console::{self, BackgroundFlag, Console, TextAlignment};
-use tcod::console::{FontLayout, FontType, Offscreen, Root};
-use tcod::input::{self, Event, Key, Mouse};
-use tcod::map::Map as FovMap;
+use pcg_rand::{seeds::PcgSeeder, Pcg32Basic};
+use rand::{Rng, SeedableRng};
 
 use crate::ai::Ai;
+use crate::colors;
 use crate::config::*;
+use crate::draw::{Tcod, TextAlignment};
+use crate::fov::FOV;
 use crate::map::Map;
 use crate::mem::mut_two;
-use crate::messages::{render_bar, Messages};
 use crate::object::{Fighter, Object};
 use crate::rect::Rect;
-
-pub struct Tcod {
-  pub root: Root,
-  pub con: Offscreen,
-  pub panel: Offscreen,
-  pub fov: FovMap,
-  pub key: Key,
-  pub mouse: Mouse,
-}
-
-impl Tcod {
-  pub fn new() -> Self {
-    tcod::system::set_fps(LIMIT_FPS);
-
-    Self {
-      root: Root::initializer()
-        .font("arial10x10.png", FontLayout::Tcod)
-        .font_type(FontType::Greyscale)
-        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
-        .title("Rust/libtcod tutorial")
-        .init(),
-      con: Offscreen::new(MAP_WIDTH, MAP_HEIGHT),
-      panel: Offscreen::new(SCREEN_WIDTH, PANEL_HEIGHT),
-      fov: FovMap::new(MAP_WIDTH, MAP_HEIGHT),
-      key: Default::default(),
-      mouse: Default::default(),
-    }
-  }
-
-  pub fn check_for_events(&mut self) {
-    match input::check_for_event(input::MOUSE | input::KEY_PRESS) {
-      Some((_, Event::Mouse(m))) => self.mouse = m,
-      Some((_, Event::Key(k))) => self.key = k,
-      _ => self.key = Default::default(),
-    }
-  }
-}
+use crate::ui::{render_bar, Messages};
 
 fn place_objects(room: &Rect, objects: &mut Vec<Object>) {
+  let mut rng = Pcg32Basic::from_seed(PcgSeeder::default());
+
   // choose random number of monsters
-  let num_monsters = rand::thread_rng().gen_range(0, MAX_ROOM_MONSTERS + 1);
+  let num_monsters = rng.gen_range(0, MAX_ROOM_MONSTERS + 1);
 
   for _ in 0..num_monsters {
     // choose random spot for this monster
-    let x = rand::thread_rng().gen_range(room.x1 + 1, room.x2);
-    let y = rand::thread_rng().gen_range(room.y1 + 1, room.y2);
+    let x = rng.gen_range(room.x1 + 1, room.x2);
+    let y = rng.gen_range(room.y1 + 1, room.y2);
 
-    let mut monster = if rand::random::<f32>() < 0.8 {
+    let mut monster = if rng.gen::<f32>() < 0.8 {
       // 80% chance of getting an orc
       // create an orc
       let mut orc = Object::new(x, y, 'o', colors::DESATURATED_GREEN, "orc", true);
@@ -100,13 +63,14 @@ pub struct Player {
 pub struct Game {
   pub map: Map,
   pub messages: Messages,
+  pub fov: FOV,
   pub objects: Vec<Object>,
   pub player: Player,
   pub tick: u64,
 }
 
 impl Game {
-  pub fn new(tcod: &mut Tcod) -> Self {
+  pub fn new() -> Self {
     // create object representing the player
     let mut player = Object::new(0, 0, '@', colors::WHITE, "player", false);
     player.alive = true;
@@ -121,6 +85,7 @@ impl Game {
     let mut game = Game {
       map: Map::new(),
       messages: Messages::new(),
+      fov: FOV::new(MAP_WIDTH, MAP_HEIGHT),
       objects: vec![player],
       tick: 0,
       player: Player {
@@ -132,7 +97,7 @@ impl Game {
     // populate the FOV map, according to the generated map
     for y in 0..MAP_HEIGHT {
       for x in 0..MAP_WIDTH {
-        tcod.fov.set(
+        game.fov.set(
           x,
           y,
           !game.map.tile_at(x, y).block_sight,
@@ -163,13 +128,21 @@ impl Game {
     game
   }
 
-  pub fn update(&mut self, tcod: &Tcod) {
+  pub fn update(&mut self) {
+    // recompute FOV if needed (the player moved or something)
+    if self.player.prev_position != self.objects[PLAYER].pos() {
+      let (x, y) = self.objects[PLAYER].pos();
+
+      self.fov.compute_fov(x, y, TORCH_RADIUS, FOV_LIGHT_WALLS);
+    }
+    self.player.prev_position = self.objects[PLAYER].pos();
+
     // let monsters take their turn
     if self.objects[PLAYER].alive {
       for id in 1..self.objects.len() {
         // TODO: how to achieve this without Copy?
         if let Some(ai) = self.objects[id].ai {
-          ai.action(id, &tcod, self);
+          ai.action(id, self);
         }
       }
     }
@@ -182,7 +155,8 @@ impl Game {
           let (x, y) = self.objects[id].pos();
           let (dx, dy) = (px + ax - x, py + ay - y);
 
-          if (dx == 0 && dy.abs() <= 1) || (dx.abs() <= 1 && dy == 0) {
+          if dx == 0 && dy == 0 {
+            // if (dx == 0 && dy.abs() <= 1) || (dx.abs() <= 1 && dy == 0) {
             let (target, source) = mut_two(id, PLAYER, &mut self.objects);
             source.attack(target, &mut self.messages);
           }
@@ -195,6 +169,8 @@ impl Game {
         self.objects[PLAYER].stop_attacking();
       }
     }
+
+    self.tick += 1;
   }
 
   pub fn move_by(&mut self, id: usize, dx: i32, dy: i32) {
@@ -231,160 +207,132 @@ impl Game {
     let dy = (dy as f32 / distance).round() as i32;
     self.move_by(id, dx, dy);
   }
-}
 
-pub fn render_all(tcod: &mut Tcod, game: &mut Game, fov_recompute: bool) {
-  if fov_recompute {
-    // recompute FOV if needed (the player moved or something)
-    let (x, y) = game.objects[0].pos();
-    tcod
-      .fov
-      .compute_fov(x, y, TORCH_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO);
+  pub fn handle_keys(&mut self, key_code: i32) -> bool {
+    if !self.objects[PLAYER].alive {
+      return false;
+    };
+
+    match key_code {
+      38 => self.objects[PLAYER].start_attacking(0, -1),
+      40 => self.objects[PLAYER].start_attacking(0, 1),
+      37 => self.objects[PLAYER].start_attacking(-1, 0),
+      39 => self.objects[PLAYER].start_attacking(1, 0),
+
+      87 => self.move_by(PLAYER, 0, -1),
+      83 => self.move_by(PLAYER, 0, 1),
+      65 => self.move_by(PLAYER, -1, 0),
+      68 => self.move_by(PLAYER, 1, 0),
+      _ => {}
+    }
+
+    false
   }
 
-  // go through all tiles, and set their background color
-  for y in 0..MAP_HEIGHT {
-    for x in 0..MAP_WIDTH {
-      let visible = tcod.fov.is_in_fov(x, y);
-      let wall = game.map.tile_at(x, y).block_sight;
-      let color = match (visible, wall) {
-        // outside of field of view:
-        (false, true) => COLOR_DARK_WALL,
-        (false, false) => COLOR_DARK_GROUND,
-        // inside fov:
-        (true, true) => COLOR_LIGHT_WALL,
-        (true, false) => COLOR_LIGHT_GROUND,
-      };
+  // pub fn handle_keys(&mut self, key_codes: &[i32]) {
+  //   for key_code in key_codes {
+  //     match key_code {
+  //       _ => {}
+  //     }
+  //   }
+  // }
 
-      let mut explored = game.map.tile_at(x, y).explored;
+  pub fn render(&mut self, tcod: &mut Tcod, mouse: (i32, i32)) {
+    tcod.background(colors::BLACK);
+    tcod.clear_chars();
 
-      if visible {
-        // since it's visible, explore it
-        explored = true;
-        game.map.set_explored(x, y);
-      }
+    // go through all tiles, and set their background color
+    for y in 0..MAP_HEIGHT {
+      for x in 0..MAP_WIDTH {
+        let visible = self.fov.is_in_fov(x, y);
 
-      if explored {
-        // show explored tiles only (any visible tile is explored already)
-        tcod
-          .con
-          .set_char_background(x, y, color, BackgroundFlag::Set);
+        let mut explored = self.map.tile_at(x, y).explored;
+
+        if visible {
+          // since it's visible, explore it
+          explored = true;
+          // TODO: shouldn't this be in `update`?
+          self.map.set_explored(x, y);
+        }
+
+        if explored {
+          let wall = self.map.tile_at(x, y).block_sight;
+          let color = match (visible, wall) {
+            // outside of field of view:
+            (false, true) => COLOR_DARK_WALL,
+            (false, false) => COLOR_DARK_GROUND,
+            // inside fov:
+            (true, true) => COLOR_LIGHT_WALL,
+            (true, false) => COLOR_LIGHT_GROUND,
+          };
+
+          // show explored tiles only (any visible tile is explored already)
+          tcod.put_char_background(x, y, color);
+        }
       }
     }
-  }
 
-  let mut to_draw: Vec<_> = game
-    .objects
-    .iter()
-    .filter(|o| tcod.fov.is_in_fov(o.x, o.y))
-    .collect();
+    let mut to_draw: Vec<_> = self
+      .objects
+      .iter()
+      .filter(|o| self.fov.is_in_fov(o.x, o.y))
+      .collect();
 
-  // sort so that non-blocking objects come first
-  to_draw.sort_by(|o1, o2| o1.blocks.cmp(&o2.blocks));
+    // sort so that non-blocking objects come first
+    to_draw.sort_by(|o1, o2| {
+      let a = o1.alive.cmp(&o2.alive);
+      if a == std::cmp::Ordering::Equal {
+        o1.blocks.cmp(&o2.blocks)
+      } else {
+        a
+      }
+    });
 
-  // draw all objects in the list
-  for object in to_draw {
-    object.draw(&mut tcod.con);
-  }
-
-  // blit the contents of "con" to the root console
-  console::blit(
-    &tcod.con,
-    (0, 0),
-    (MAP_WIDTH, MAP_HEIGHT),
-    &mut tcod.root,
-    (0, 0),
-    1.0,
-    1.0,
-  );
-
-  // prepare to render the GUI panel
-  tcod.panel.set_default_background(colors::BLACK);
-  tcod.panel.clear();
-
-  // show the player's stats
-  let hp = game.objects[PLAYER].fighter.map_or(0, |f| f.hp);
-  let max_hp = game.objects[PLAYER].fighter.map_or(0, |f| f.max_hp);
-  render_bar(
-    &mut tcod.panel,
-    1,
-    1,
-    BAR_WIDTH,
-    "HP",
-    hp,
-    max_hp,
-    colors::LIGHT_RED,
-    colors::DARKER_RED,
-  );
-
-  game.messages.draw(&mut tcod.panel);
-
-  // display names of objects under the mouse
-  tcod.panel.set_default_foreground(colors::LIGHT_GREY);
-  tcod.panel.print_ex(
-    1,
-    0,
-    BackgroundFlag::None,
-    TextAlignment::Left,
-    get_names_under_mouse(tcod.mouse, &game.objects, &tcod.fov),
-  );
-
-  // blit the contents of `panel` to the root console
-  console::blit(
-    &tcod.panel,
-    (0, 0),
-    (SCREEN_WIDTH, PANEL_HEIGHT),
-    &mut tcod.root,
-    (0, PANEL_Y),
-    1.0,
-    1.0,
-  );
-
-  tcod.root.flush();
-}
-
-fn get_names_under_mouse(mouse: Mouse, objects: &[Object], fov_map: &FovMap) -> String {
-  let (x, y) = (mouse.cx as i32, mouse.cy as i32);
-
-  // create a list with the names of all objects at the mouse's coordinates and in FOV
-  let names = objects
-    .iter()
-    .filter(|obj| obj.pos() == (x, y) && fov_map.is_in_fov(obj.x, obj.y))
-    .map(|obj| obj.name.clone())
-    .collect::<Vec<_>>();
-
-  names.join(", ") // join the names, separated by commas
-}
-
-pub fn handle_keys(tcod: &mut Tcod, game: &mut Game) -> bool {
-  use tcod::input::KeyCode::*;
-
-  let key = tcod.key;
-  match key {
-    Key {
-      code: Enter,
-      alt: true,
-      ..
-    } => {
-      // Alt+Enter: toggle fullscreen
-      let fullscreen = tcod.root.is_fullscreen();
-      tcod.root.set_fullscreen(!fullscreen);
+    // draw all objects in the list
+    for object in to_draw {
+      object.draw(tcod);
     }
-    Key { code: Escape, .. } => return true, // exit game
 
-    // movement keys
-    Key { code: Up, .. } => game.move_by(PLAYER, 0, -1),
-    Key { code: Down, .. } => game.move_by(PLAYER, 0, 1),
-    Key { code: Left, .. } => game.move_by(PLAYER, -1, 0),
-    Key { code: Right, .. } => game.move_by(PLAYER, 1, 0),
+    // // prepare to render the GUI panel
+    // tcod.panel.set_default_background(colors::BLACK);
+    // tcod.panel.clear();
 
-    Key { printable: 'w', .. } => game.objects[PLAYER].start_attacking(0, -1),
-    Key { printable: 's', .. } => game.objects[PLAYER].start_attacking(0, 1),
-    Key { printable: 'a', .. } => game.objects[PLAYER].start_attacking(-1, 0),
-    Key { printable: 'd', .. } => game.objects[PLAYER].start_attacking(1, 0),
+    // show the player's stats
+    let hp = self.objects[PLAYER].fighter.map_or(0, |f| f.hp);
+    let max_hp = self.objects[PLAYER].fighter.map_or(0, |f| f.max_hp);
+    render_bar(
+      tcod,
+      1,
+      1,
+      BAR_WIDTH,
+      "HP",
+      hp,
+      max_hp,
+      colors::LIGHT_RED,
+      colors::DARKER_RED,
+    );
 
-    _ => {}
+    self.messages.draw(tcod);
+
+    // display names of objects under the mouse
+    tcod.stroke(colors::LIGHT_GREY);
+    tcod.print_ex(
+      &self.get_names_at(mouse),
+      1,
+      PANEL_Y + PANEL_HEIGHT - 2,
+      TextAlignment::Left,
+    );
   }
 
-  false
+  fn get_names_at(&self, (x, y): (i32, i32)) -> String {
+    // create a list with the names of all objects at the mouse's coordinates and in FOV
+    let names = self
+      .objects
+      .iter()
+      .filter(|obj| obj.pos() == (x, y) && self.fov.is_in_fov(obj.x, obj.y))
+      .map(|obj| obj.name.clone())
+      .collect::<Vec<_>>();
+
+    names.join(", ") // join the names, separated by commas
+  }
 }
