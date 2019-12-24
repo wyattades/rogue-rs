@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Roguelike</title>
+    <style>
+      #root {
+        display: flex;
+      }
+      pre {
+        margin: 0;
+        padding: 0;
+        line-height: 1;
+      }
+      label {
+        margin-top: 24px;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <pre data-game="text"></pre>
+      <canvas data-game="canvas_2d" width="800" height="500"></canvas>
+    </div>
+    <label>
+      Render mode:
+      <select id="render_mode">
+        <option value="text">Text</option>
+        <option value="canvas_2d">Canvas 2D</option>
+      </select></label
+    >
+  <script type="text/javascript" src="index.js"></script></body>
+</html>
