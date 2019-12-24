@@ -9,6 +9,10 @@ impl Color {
   pub const fn new(r: u8, g: u8, b: u8) -> Color {
     Color { r, g, b }
   }
+
+  pub fn to_hex_str(&self) -> String {
+    format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
+  }
 }
 
 // NOTE; colour names and values copied from:

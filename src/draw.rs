@@ -1,4 +1,6 @@
 use std::iter::FromIterator;
+use wasm_bindgen::prelude::JsValue;
+use web_sys::CanvasRenderingContext2d;
 
 use crate::colors::{self, Color};
 use crate::config::*;
@@ -9,8 +11,8 @@ pub struct Tcod {
   fill: Option<Color>,
   stroke: Option<Color>,
   bg: Vec<Vec<Option<Color>>>,
-  fg: Vec<Vec<Option<Color>>>,
-  chars: Vec<Vec<Option<char>>>,
+  // fg: Vec<Vec<Option<Color>>>,
+  chars: Vec<Vec<Option<(char, Color)>>>,
 }
 
 pub enum TextAlignment {
@@ -27,7 +29,7 @@ impl Tcod {
       fill: None,
       stroke: None,
       bg: vec![vec![None; h as usize]; w as usize],
-      fg: vec![vec![None; h as usize]; w as usize],
+      // fg: vec![vec![None; h as usize]; w as usize],
       chars: vec![vec![None; h as usize]; w as usize],
     }
   }
@@ -64,8 +66,8 @@ impl Tcod {
   }
 
   pub fn put_char(&mut self, x: i32, y: i32, char: char) {
-    self.fg[x as usize][y as usize] = self.stroke;
-    self.chars[x as usize][y as usize] = Some(char);
+    // self.fg[x as usize][y as usize] = self.stroke;
+    self.chars[x as usize][y as usize] = Some((char, self.stroke.unwrap_or(colors::WHITE)));
   }
 
   pub fn rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
@@ -95,7 +97,7 @@ impl Tcod {
       if x + i as i32 >= self.w {
         break;
       }
-      self.chars[x as usize + i][y as usize] = Some(char);
+      self.put_char(x, y, char);
     }
   }
 
@@ -127,7 +129,7 @@ impl Tcod {
         break;
       }
       if char_x < self.w {
-        self.chars[char_x as usize][char_y as usize] = Some(char);
+        self.put_char(char_x, char_y, char);
       }
     }
   }
@@ -139,7 +141,7 @@ impl Tcod {
       chars[((y * (self.w + 1)) + self.w) as usize] = '\n';
       for x in 0..self.w {
         chars[((y * (self.w + 1)) + x) as usize] =
-          if let Some(obj) = self.chars[x as usize][y as usize] {
+          if let Some((obj, _color)) = self.chars[x as usize][y as usize] {
             obj
           } else if let Some(wall) = self.bg[x as usize][y as usize] {
             match wall {
@@ -157,5 +159,36 @@ impl Tcod {
     }
 
     String::from_iter(chars)
+  }
+
+  const B_SIZE: i32 = 10;
+  pub fn render_to_canvas(&self, ctx: CanvasRenderingContext2d) {
+    for y in 0..self.h {
+      for x in 0..self.w {
+        if let Some(bg) = self.bg[x as usize][y as usize] {
+          ctx.set_fill_style(&JsValue::from_str(&bg.to_hex_str()));
+          ctx.fill_rect(
+            (x * Tcod::B_SIZE).into(),
+            (y * Tcod::B_SIZE).into(),
+            Tcod::B_SIZE.into(),
+            Tcod::B_SIZE.into(),
+          );
+        }
+      }
+    }
+    for y in 0..self.h {
+      for x in 0..self.w {
+        if let Some((obj, color)) = self.chars[x as usize][y as usize] {
+          ctx.set_fill_style(&JsValue::from_str(&color.to_hex_str()));
+          // ctx.fill_ellipse()
+          ctx.fill_text(
+            &obj.to_string(),
+            (x * Tcod::B_SIZE).into(),
+            ((y + 1) * Tcod::B_SIZE).into(),
+          );
+        }
+      }
+    }
+    // ((), ())
   }
 }

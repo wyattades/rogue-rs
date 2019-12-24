@@ -6,12 +6,6 @@ pub struct Messages {
   messages: Vec<(String, Color)>,
 }
 
-macro_rules! log {
-  ( $( $t:tt )* ) => {
-      web_sys::console::log_1(&format!( $( $t )* ).into());
-  }
-}
-
 impl Messages {
   pub fn new() -> Self {
     Self { messages: vec![] }

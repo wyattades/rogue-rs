@@ -81,7 +81,7 @@ impl Object {
     tcod.put_char(self.x, self.y, self.char);
 
     if let Some((dx, dy)) = self.attacking {
-      tcod.stroke(colors::CYAN);
+      tcod.stroke(colors::WHITE);
       let char = match (dx, dy) {
         (0, 1) => '|',
         (0, -1) => '|',

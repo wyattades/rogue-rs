@@ -9,16 +9,28 @@
       #root {
         display: flex;
       }
-      #game {
+      pre {
         margin: 0;
         padding: 0;
         line-height: 1;
+      }
+      label {
+        margin-top: 24px;
+        display: block;
       }
     </style>
   </head>
   <body>
     <div id="root">
-      <pre id="game"></pre>
+      <pre data-game="text"></pre>
+      <canvas data-game="canvas_2d" width="800" height="500"></canvas>
     </div>
+    <label>
+      Render mode:
+      <select id="render_mode">
+        <option value="text">Text</option>
+        <option value="canvas_2d">Canvas 2D</option>
+      </select></label
+    >
   </body>
 </html>

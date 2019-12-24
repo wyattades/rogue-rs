@@ -1,4 +1,5 @@
 use wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::CanvasRenderingContext2d;
 
 pub mod ai;
 pub mod colors;
@@ -61,7 +62,11 @@ impl GameData {
     self.game.render(&mut self.tcod, self.mouse);
   }
 
-  pub fn render(&self) -> String {
+  pub fn render_to_string(&self) -> String {
     self.tcod.render_to_string()
+  }
+
+  pub fn render_to_canvas(&self, ctx: CanvasRenderingContext2d) {
+    self.tcod.render_to_canvas(ctx);
   }
 }
