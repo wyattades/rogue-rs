@@ -12,9 +12,7 @@ use crate::object::{Fighter, Object};
 use crate::rect::Rect;
 use crate::ui::{render_bar, Messages};
 
-fn place_objects(room: &Rect, objects: &mut Vec<Object>) {
-  let mut rng = Pcg32Basic::from_seed(PcgSeeder::default());
-
+fn place_objects<R: Rng>(rng: &mut R, room: &Rect, objects: &mut Vec<Object>) {
   // choose random number of monsters
   let num_monsters = rng.gen_range(0, MAX_ROOM_MONSTERS + 1);
 
@@ -61,6 +59,7 @@ pub struct Player {
 }
 
 pub struct Game {
+  pub rng: Pcg32Basic,
   pub map: Map,
   pub messages: Messages,
   pub fov: FOV,
@@ -70,7 +69,10 @@ pub struct Game {
 }
 
 impl Game {
-  pub fn new() -> Self {
+  pub fn new(seed: u64) -> Self {
+    // random number generator
+    let mut rng = Pcg32Basic::from_seed(PcgSeeder::seed(seed));
+
     // create object representing the player
     let mut player = Object::new(0, 0, '@', colors::WHITE, "player", false);
     player.alive = true;
@@ -83,10 +85,11 @@ impl Game {
     });
 
     let mut game = Game {
-      map: Map::new(),
+      map: Map::new(&mut rng),
       messages: Messages::new(),
       fov: FOV::new(MAP_WIDTH, MAP_HEIGHT),
       objects: vec![player],
+      rng: rng,
       tick: 0,
       player: Player {
         prev_position: (-1, -1),
@@ -115,7 +118,7 @@ impl Game {
         game.objects[PLAYER].set_pos(x, y);
       } else {
         // add enemies/objects
-        place_objects(room, &mut game.objects);
+        place_objects(&mut game.rng, room, &mut game.objects);
       }
     }
 

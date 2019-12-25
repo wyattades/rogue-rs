@@ -34,10 +34,10 @@ pub struct GameData {
 
 #[wasm_bindgen]
 impl GameData {
-  pub fn new() -> Self {
+  pub fn new(seed: i32) -> Self {
     Self {
       tcod: Tcod::new(SCREEN_WIDTH, SCREEN_HEIGHT),
-      game: Game::new(),
+      game: Game::new(seed as u64),
       key: 0,
       mouse: (0, 0),
     }

@@ -6,31 +6,51 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Roguelike</title>
     <style>
-      #root {
-        display: flex;
-      }
       pre {
         margin: 0;
-        padding: 0;
-        line-height: 1;
       }
       label {
-        margin-top: 24px;
+        margin-top: 10px;
         display: block;
       }
     </style>
   </head>
   <body>
-    <div id="root">
-      <pre data-game="text"></pre>
-      <canvas data-game="canvas_2d" width="800" height="500"></canvas>
-    </div>
+    <div id="root"></div>
+    <p>
+      <strong>Directions:</strong> use WASD to move and the arrow keys to attack
+    </p>
     <label>
       Render mode:
-      <select id="render_mode">
+      <select name="renderMode" class="gameOption">
         <option value="text">Text</option>
         <option value="canvas_2d">Canvas 2D</option>
       </select></label
     >
+    <label>
+      Seed:
+      <input
+        name="seed"
+        class="gameOption"
+        type="text"
+        placeholder="Leave blank for random seed"
+      />
+    </label>
+    <script>
+      function runGame() {
+        if (window.ROGUELIKE_INSTANCE) window.ROGUELIKE_INSTANCE.dispose();
+
+        window.ROGUELIKE_INSTANCE = window.runRoguelike({
+          renderMode: document.querySelector('[name="renderMode"]').value,
+          seed: document.querySelector('[name="seed"]').value,
+          containerId: 'root'
+        });
+      }
+
+      document.querySelectorAll('.gameOption').forEach(function(el) {
+        el.addEventListener('change', runGame);
+      });
+      runGame();
+    </script>
   </body>
 </html>

@@ -1,5 +1,4 @@
-use pcg_rand::{seeds::PcgSeeder, Pcg32Basic};
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use std::cmp;
 
 use crate::config::*;
@@ -37,14 +36,13 @@ pub struct Map {
 }
 
 impl Map {
-  pub fn new() -> Self {
+  pub fn new<R: Rng>(rng: &mut R) -> Self {
     // fill map with "blocked" tiles
     let mut map = Map {
       tiles: vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize],
       rooms: vec![],
     };
 
-    let mut rng = Pcg32Basic::from_seed(PcgSeeder::default());
     for _ in 0..MAX_ROOMS {
       // random width and height
       let w = rng.gen_range(ROOM_MIN_SIZE, ROOM_MAX_SIZE + 1);
