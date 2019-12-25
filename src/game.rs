@@ -4,7 +4,7 @@ use rand::{Rng, SeedableRng};
 use crate::ai::Ai;
 use crate::colors;
 use crate::config::*;
-use crate::draw::{Tcod, TextAlignment};
+use crate::draw::Tcod;
 use crate::fov::FOV;
 use crate::map::Map;
 use crate::mem::mut_two;
@@ -319,11 +319,12 @@ impl Game {
 
     // display names of objects under the mouse
     tcod.stroke(colors::LIGHT_GREY);
-    tcod.print_ex(
+    tcod.print_rect(
       &self.get_names_at(mouse),
       1,
       PANEL_Y + PANEL_HEIGHT - 2,
-      TextAlignment::Left,
+      BAR_WIDTH,
+      0,
     );
   }
 

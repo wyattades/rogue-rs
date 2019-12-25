@@ -11,7 +11,6 @@ pub struct Tcod {
   fill: Option<Color>,
   stroke: Option<Color>,
   bg: Vec<Vec<Option<Color>>>,
-  // fg: Vec<Vec<Option<Color>>>,
   chars: Vec<Vec<Option<(char, Color)>>>,
 }
 
@@ -89,25 +88,27 @@ impl Tcod {
     use TextAlignment::*;
     let x = x
       + (match align {
-        Left => 0.0,
-        Right => text.len() as f32,
-        Center => -(text.len() as f32) * 0.5,
-      }) as i32;
+        Left => 0,
+        Right => text.len() as i32,
+        Center => (text.len() as f32 * -0.5) as i32,
+      });
     for (i, char) in text.char_indices() {
-      if x + i as i32 >= self.w {
+      let char_x = x + i as i32;
+      if char_x >= self.w {
         break;
       }
-      self.put_char(x, y, char);
+      self.put_char(char_x, y, char);
     }
   }
 
   /// returns the number of lines that `text` takes up
-  pub fn get_height_rect(&mut self, text: &String, x: i32, y: i32, w: i32, h: i32) -> i32 {
+  pub fn get_height_rect(&mut self, text: &String, _x: i32, _y: i32, w: i32, _h: i32) -> i32 {
     (text.len() as i32 / w) + 1
   }
 
   /// print text inside a rectangle
-  pub fn print_rect(&mut self, text: &String, x: i32, y: i32, w: i32, h: i32) {
+  pub fn print_rect(&mut self, text: &String, x: i32, y: i32, w: i32, _h: i32) {
+    // TODO: what does `h` do?
     // self.panel.print_rect(
     //   x,
     //   y,
@@ -176,19 +177,21 @@ impl Tcod {
         }
       }
     }
+
     for y in 0..self.h {
       for x in 0..self.w {
         if let Some((obj, color)) = self.chars[x as usize][y as usize] {
           ctx.set_fill_style(&JsValue::from_str(&color.to_hex_str()));
-          // ctx.fill_ellipse()
-          ctx.fill_text(
-            &obj.to_string(),
-            (x * Tcod::B_SIZE).into(),
-            ((y + 1) * Tcod::B_SIZE).into(),
-          );
+          // TODO: render real sprites instead of text?
+          ctx
+            .fill_text(
+              &obj.to_string(),
+              (x * Tcod::B_SIZE).into(),
+              ((y + 1) * Tcod::B_SIZE).into(),
+            )
+            .unwrap();
         }
       }
     }
-    // ((), ())
   }
 }
