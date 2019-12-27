@@ -10,10 +10,11 @@
         margin: 0;
       }
       label {
-        margin-top: 10px;
+        margin-bottom: 10px;
         display: block;
       }
     </style>
+    <script src="//mrdoob.github.io/stats.js/build/stats.min.js"></script>
   <script type="text/javascript" src="index.js"></script></head>
   <body>
     <div id="root"></div>
@@ -23,7 +24,8 @@
     <label>
       Render mode:
       <select name="renderMode" class="gameOption">
-        <option value="text">Text</option>
+        <option value="text">Plain Text</option>
+        <option value="html">HTML</option>
         <option value="canvas_2d">Canvas 2D</option>
       </select></label
     >
@@ -34,23 +36,44 @@
         class="gameOption"
         type="text"
         placeholder="Leave blank for random seed"
+        style="min-width:170px;"
       />
     </label>
+    <button type="button" name="regenerate">Regenerate</button>
     <script>
-      function runGame() {
-        if (window.ROGUELIKE_INSTANCE) window.ROGUELIKE_INSTANCE.dispose();
+      (function() {
+        var $regenerate = document.querySelector('[name="regenerate"]');
+        var $renderMode = document.querySelector('[name="renderMode"]');
+        var $seed = document.querySelector('[name="seed"]');
 
-        window.ROGUELIKE_INSTANCE = window.runRoguelike({
-          renderMode: document.querySelector('[name="renderMode"]').value,
-          seed: document.querySelector('[name="seed"]').value,
-          containerId: 'root'
+        function runGame() {
+          if (window.ROGUELIKE_INSTANCE) window.ROGUELIKE_INSTANCE.dispose();
+
+          window.ROGUELIKE_INSTANCE = window.runRoguelike({
+            renderMode: $renderMode.value,
+            seed: $seed.value,
+            containerId: 'root'
+          });
+        }
+
+        $renderMode.addEventListener('change', function() {
+          window.ROGUELIKE_INSTANCE.setRenderMode($renderMode.value);
         });
-      }
 
-      document.querySelectorAll('.gameOption').forEach(function(el) {
-        el.addEventListener('change', runGame);
-      });
-      runGame();
+        $regenerate.addEventListener('click', runGame);
+
+        runGame();
+      })();
+    </script>
+    <script>
+      (function() {
+        var stats = new window.Stats();
+        document.body.appendChild(stats.dom);
+        requestAnimationFrame(function loop() {
+          stats.update();
+          requestAnimationFrame(loop);
+        });
+      })();
     </script>
   </body>
 </html>
