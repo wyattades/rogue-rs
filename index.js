@@ -13,36 +13,57 @@ const hashString = (str) => {
 };
 
 const GAME_ID = 'roguelike_game';
+const WIDTH = 80;
+const HEIGHT = 50;
+const CANVAS_SCALE_X = 10;
+const CANVAS_SCALE_Y = 16;
 
 class GameRunner {
   constructor(renderMode, container, rngSeed) {
     this.rngSeed = rngSeed;
-    container.style.display = 'flex';
+    this.container = container;
+    this.setRenderMode(renderMode);
 
-    this.el = container.querySelector(`#${GAME_ID}`);
-    if (this.el) this.el.remove();
-
-    if (renderMode === 'canvas_2d') {
-      this.el = document.createElement('canvas');
-      this.el.width = 800;
-      this.el.height = 500;
-      this.canvasCtx = this.el.getContext('2d');
-      this.canvasCtx.font = 'normal 12px monospace';
-    } else {
-      this.el = document.createElement('pre');
-      this.el.style.padding = 0;
-      this.el.style.lineHeight = 1;
-      this.el.style.fontFamily = "'Courier New', Courier, monospace";
-    }
-
-    this.el.id = GAME_ID;
-    container.appendChild(this.el);
-
+    // TODO: use babel-transform-class-properties
     this.render = this.render.bind(this);
     this.mouseMove = this.mouseMove.bind(this);
     this.keyDown = this.keyDown.bind(this);
 
     this.run();
+  }
+
+  setRenderMode(renderMode) {
+    this.renderMode = renderMode;
+    this.vdr = undefined;
+    this.canvasCtx = undefined;
+
+    this.container.style.display = 'flex';
+
+    this.el = this.container.querySelector(`#${GAME_ID}`);
+    if (this.el) this.el.remove();
+
+    if (renderMode === 'canvas_2d') {
+      this.el = document.createElement('canvas');
+      this.el.width = WIDTH * CANVAS_SCALE_X;
+      this.el.height = HEIGHT * CANVAS_SCALE_Y;
+      this.canvasCtx = this.el.getContext('2d');
+      this.canvasCtx.font = 'normal 16px monospace';
+      this.canvasCtx.textBaseline = 'top';
+    } else if (renderMode === 'text') {
+      this.el = document.createElement('pre');
+      this.el.style.lineHeight = 1;
+      this.el.style.fontFamily = "'Courier New', Courier, monospace";
+    } else if (renderMode === 'html') {
+      this.el = document.createElement('div');
+      this.el.style.lineHeight = 1;
+      this.el.style.fontFamily = "'Courier New', Courier, monospace";
+      this.setupVDR();
+      this.renderBuffer = new Uint8Array(WIDTH * HEIGHT * 7);
+    } else throw new Error(`Unsupported render mode: ${renderMode}`);
+
+    this.el.style.padding = 0;
+    this.el.id = GAME_ID;
+    this.container.appendChild(this.el);
   }
 
   async run() {
@@ -57,12 +78,62 @@ class GameRunner {
     window.addEventListener('keydown', this.keyDown);
   }
 
+  // virtual DOM renderer
+  setupVDR() {
+    this.vdr = [];
+    while (this.el.hasChildNodes()) this.el.removeChild(this.el.lastChild);
+
+    let x, y;
+    for (y = 0; y < HEIGHT; y++) {
+      for (x = 0; x < WIDTH; x++) {
+        const $span = document.createElement('span');
+        $span.style.backgroundColor = '#000000';
+        $span.innerHTML = '&nbsp;';
+        this.el.appendChild($span);
+        this.vdr.push($span);
+      }
+      this.el.appendChild(document.createElement('br'));
+    }
+  }
+
   render() {
     // adhoc method for slower framerate
     if (this.iter++ % 8 === 0) {
       this.game.tick();
-      if (this.canvasCtx) this.game.render_to_canvas(this.canvasCtx);
-      else this.el.textContent = this.game.render_to_string();
+
+      if (this.canvasCtx)
+        this.game.render_to_canvas(
+          this.canvasCtx,
+          CANVAS_SCALE_X,
+          CANVAS_SCALE_Y
+        );
+      else if (this.vdr) {
+        let r = this.renderBuffer;
+        this.game.fill_render_buffer(r);
+
+        let x,
+          y,
+          pixel,
+          i = 0,
+          j = 0;
+        for (y = 0; y < HEIGHT; y++) {
+          for (x = 0; x < WIDTH; x++) {
+            pixel = this.vdr[i++];
+
+            pixel.style.backgroundColor = `rgb(${r[j]},${r[j + 1]},${
+              r[j + 2]
+            })`;
+
+            pixel.style.color = `rgb(${r[j + 3]},${r[j + 4]},${r[j + 5]})`;
+
+            pixel.textContent = String.fromCharCode(
+              r[j + 6] === 0 || r[j + 6] === 32 ? 160 : r[j + 6]
+            );
+
+            j += 7;
+          }
+        }
+      } else this.el.textContent = this.game.render_to_string();
     }
 
     window.requestAnimationFrame(this.render);
@@ -84,6 +155,7 @@ class GameRunner {
     window.removeEventListener('mousemove', this.mouseMove);
     window.removeEventListener('keydown', this.keyDown);
 
+    // TODO: do I need to clear WASM memory?
     // if (this.game) this.game.free();
 
     this.el.remove();

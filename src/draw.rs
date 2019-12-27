@@ -5,6 +5,8 @@ use web_sys::CanvasRenderingContext2d;
 use crate::colors::{self, Color};
 use crate::config::*;
 
+/// Rendering engine
+/// Named "Tcod" after the rogulelike "tcod" project: https://pypi.org/project/tcod/
 pub struct Tcod {
   pub w: i32,
   pub h: i32,
@@ -162,17 +164,16 @@ impl Tcod {
     String::from_iter(chars)
   }
 
-  const B_SIZE: i32 = 10;
-  pub fn render_to_canvas(&self, ctx: CanvasRenderingContext2d) {
+  pub fn render_to_canvas(&self, ctx: CanvasRenderingContext2d, scale_x: i32, scale_y: i32) {
     for y in 0..self.h {
       for x in 0..self.w {
-        if let Some(bg) = self.bg[x as usize][y as usize] {
-          ctx.set_fill_style(&JsValue::from_str(&bg.to_hex_str()));
+        if let Some(ref bg) = self.bg[x as usize][y as usize] {
+          ctx.set_fill_style(&&bg.to_hex_str().into());
           ctx.fill_rect(
-            (x * Tcod::B_SIZE).into(),
-            (y * Tcod::B_SIZE).into(),
-            Tcod::B_SIZE.into(),
-            Tcod::B_SIZE.into(),
+            (x * scale_x).into(),
+            (y * scale_y).into(),
+            scale_x.into(),
+            scale_y.into(),
           );
         }
       }
@@ -180,17 +181,38 @@ impl Tcod {
 
     for y in 0..self.h {
       for x in 0..self.w {
-        if let Some((obj, color)) = self.chars[x as usize][y as usize] {
-          ctx.set_fill_style(&JsValue::from_str(&color.to_hex_str()));
+        if let Some((obj, ref color)) = self.chars[x as usize][y as usize] {
+          ctx.set_fill_style(&color.to_hex_str().into());
           // TODO: render real sprites instead of text?
           ctx
             .fill_text(
               &obj.to_string(),
-              (x * Tcod::B_SIZE).into(),
-              ((y + 1) * Tcod::B_SIZE).into(),
+              (x * scale_x).into(),
+              (y * scale_y + 1).into(), // add a 1px offset
             )
             .unwrap();
         }
+      }
+    }
+  }
+
+  pub fn fill_render_buffer(&self, render_buffer: &mut [u8]) {
+    let mut i: usize = 0;
+    for y in 0..self.h {
+      for x in 0..self.w {
+        let bg_color = &self.bg[x as usize][y as usize].unwrap_or(colors::BLACK);
+        let (char, ref char_color) =
+          self.chars[x as usize][y as usize].unwrap_or(('\0', colors::BLACK));
+
+        render_buffer[i] = bg_color.r;
+        render_buffer[i + 1] = bg_color.g;
+        render_buffer[i + 2] = bg_color.b;
+        render_buffer[i + 3] = char_color.r;
+        render_buffer[i + 4] = char_color.g;
+        render_buffer[i + 5] = char_color.b;
+        render_buffer[i + 6] = char as u8;
+
+        i += 7;
       }
     }
   }

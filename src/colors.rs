@@ -13,14 +13,12 @@ impl Color {
   pub fn to_hex_str(&self) -> String {
     format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
   }
+
+  pub fn to_int(&self) -> u32 {
+    ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
+  }
 }
 
-// NOTE; colour names and values copied from:
-// tcod-sys/libtcod/include/libtcod_int.h
-//
-// We cannot return statics exported by the DLL here because they have a
-// different type (TCOD_color_t) and we cannot call `transmute` to convert
-// them to `Color`.
 pub const BLACK: Color = Color { r: 0, g: 0, b: 0 };
 pub const DARKEST_GREY: Color = Color {
   r: 31,

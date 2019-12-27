@@ -66,7 +66,11 @@ impl GameData {
     self.tcod.render_to_string()
   }
 
-  pub fn render_to_canvas(&self, ctx: CanvasRenderingContext2d) {
-    self.tcod.render_to_canvas(ctx);
+  pub fn render_to_canvas(&self, ctx: CanvasRenderingContext2d, scale_x: i32, scale_y: i32) {
+    self.tcod.render_to_canvas(ctx, scale_x, scale_y);
+  }
+
+  pub fn fill_render_buffer(&self, render_buffer: &mut [u8]) {
+    self.tcod.fill_render_buffer(render_buffer);
   }
 }

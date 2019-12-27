@@ -1,7 +1,7 @@
 {
   "scripts": {
     "deploy": "gh-pages -d dist",
-    "build": "NODE_ENV=production webpack",
+    "build": "rm -rf dist; NODE_ENV=production webpack",
     "dev": "NODE_ENV=development webpack-dev-server"
   },
   "dependencies": {
