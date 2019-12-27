@@ -1,5 +1,4 @@
 use std::iter::FromIterator;
-use wasm_bindgen::prelude::JsValue;
 use web_sys::CanvasRenderingContext2d;
 
 use crate::colors::{self, Color};
