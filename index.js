@@ -44,11 +44,31 @@ class GameRunner {
 
     if (renderMode === 'canvas_2d') {
       this.el = document.createElement('canvas');
-      this.el.width = WIDTH * CANVAS_SCALE_X;
-      this.el.height = HEIGHT * CANVAS_SCALE_Y;
       this.canvasCtx = this.el.getContext('2d');
+
+      const pixelRatio =
+        (window.devicePixelRatio || 1) /
+        (this.canvasCtx.webkitBackingStorePixelRatio ||
+          this.canvasCtx.mozBackingStorePixelRatio ||
+          this.canvasCtx.msBackingStorePixelRatio ||
+          this.canvasCtx.oBackingStorePixelRatio ||
+          this.canvasCtx.backingStorePixelRatio ||
+          1);
+
+      const w = WIDTH * CANVAS_SCALE_X;
+      const h = HEIGHT * CANVAS_SCALE_Y;
+
+      this.el.width = w * pixelRatio;
+      this.el.height = h * pixelRatio;
+      this.el.style.width = w + 'px';
+      this.el.style.height = h + 'px';
+
       this.canvasCtx.font = 'normal 16px monospace';
       this.canvasCtx.textBaseline = 'top';
+      this.canvasCtx.imageSmoothingEnabled = false;
+      this.canvasCtx.filter = null;
+
+      this.canvasCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     } else if (renderMode === 'text') {
       this.el = document.createElement('pre');
       this.el.style.lineHeight = 1;
