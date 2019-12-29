@@ -34,6 +34,7 @@ pub struct GameData {
 
 #[wasm_bindgen]
 impl GameData {
+  #[wasm_bindgen(constructor)]
   pub fn new(seed: i32) -> Self {
     Self {
       tcod: Tcod::new(SCREEN_WIDTH, SCREEN_HEIGHT),

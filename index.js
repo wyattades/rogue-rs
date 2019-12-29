@@ -89,7 +89,7 @@ class GameRunner {
   async run() {
     const { GameData } = await import('./pkg');
 
-    this.game = GameData.new(this.rngSeed);
+    this.game = new GameData(this.rngSeed);
 
     this.iter = 0;
     window.requestAnimationFrame(this.render);
